@@ -64,45 +64,12 @@ namespace System;";
         return result;
     }
 
-    /// <summary>
-    /// 对于增量的代码生成，只需要有 Initialize 方法即可，所有逻辑都在这个方法里面实现
-    /// 按照官方的设计，将会分为三个步骤完成增量代码生成：
-    /// 告诉框架层需要关注哪些文件的变更
-    /// 在有对应的文件的变更情况下，才会触发后续步骤。如此就是增量代码生成的关键
-    /// 告诉框架层从变更的文件里面感兴趣什么数据，对数据预先进行处理
-    /// 预先处理过程中，是会不断进行丢掉处理的
-    /// 其中第一步和第二步可以合在一起
-    /// 使用给出的数据进行处理源代码生成逻辑
-    /// 这一步的逻辑和普通的 Source Generator 是相同的，只是输入的参数不同
-    /// </summary>
-    /// <param name="context"></param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-
-        //DebugHelper.Debug();
-        //DebugHelper.Trace();
-        //context.RegisterImplementationSourceOutput
-        //Debugger.Launch();
-
-        //context.RegisterPostInitializationOutput(x => {
-        //    x.AddSource("Fixed.cs", "abc");
-
-        //});
 
         var incrementalValuesProvider = context.SyntaxProvider.CreateSyntaxProvider(
             FilterSyntaxTargetForGeneration
             , FilterSemanticTargetForGeneration);
-        //.Collect().SelectMany((myObjects, _) => myObjects.Distinct());
-
-        //var generatorAttributes = 
-        //    context.SyntaxProvider.ForAttributeWithMetadataName("BitX.FixedAttribute<T>",
-        //    (_, _) => true,
-        //    (syntaxContext, _) => syntaxContext
-        //);
-
-        //context.RegisterSourceOutput(generatorAttributes, GenerateFixedAttribute);
-
-
 
 
         context.RegisterSourceOutput(incrementalValuesProvider, static (spc, ffd) =>
@@ -114,19 +81,8 @@ namespace System;";
                 else
                     BitFieldTypeGenerate(spc, ffd.Value);
             }
-            //var fieldTypeSynTax = fds.Declaration.Type;
-            //if (fieldTypeSynTax is GenericNameSyntax fieldTypeGenericNameSynTax
-            //&& fieldTypeGenericNameSynTax.Arity == 1
-            //&& fieldTypeGenericNameSynTax.TypeArgumentList.Arguments.FirstOrDefault() is IdentifierNameSyntax genericArgumentTypeSyntax)
-            //{
-            //    var fieldType_GenericTypeName = fieldTypeGenericNameSynTax.Identifier.Text;
-            //    var fieldType_GenericType_ArgumentTypeName = genericArgumentTypeSyntax.Identifier.Text;
-            //    var sizeTxt = fieldType_GenericTypeName.Replace("Fixed", "");
-            //    spc.AddSource($"{fieldType_GenericTypeName}.g.cs", string.Format(StructTemplate, sizeTxt));
-            //}
         });
 
-        //Step1_FindFiles(context);
         Log.FlushLogs(context);
     }
 
@@ -182,36 +138,6 @@ public struct Bit{size}_{bitOffset} : IEquatable<{typeName}>
 
     }
 
-
-    //public void GenerateFixedAttribute(SourceProductionContext sourceProductionContext,GeneratorAttributeSyntaxContext generatorAttributeSyntaxContext)
-    //{
-
-    //    if (generatorAttributeSyntaxContext.TargetSymbol is not INamedTypeSymbol symbol)
-    //        return;
-
-    //  foreach(var attribute in generatorAttributeSyntaxContext.Attributes)//  AttributeData attribute = context.Attributes .FirstOrDefault(a => a.AttributeClass.Name == "EventApplyAttribute");
-    //    {
-    //        //attribute.NamedArguments
-    //        //attribute.ConstructorArguments.Where(tc=>tc.Value)
-
-    //        var size = (int)attribute.ConstructorArguments[0].Value!;//这里FixedAttribute只有一个必填参数
-    //        var genericTypes = attribute.AttributeConstructor.TypeParameters;
-    //        genericTypes[0]
-
-
-    //        var ms = attribute.AttributeConstructor;
-    //        ms.ContainingType
-    //        var source = string.Format(StructTemplate, size);
-
-    //        sourceProductionContext.AddSource(
-    //        // 不能重名
-    //            $"{symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat.WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted))}_{attribute.Key}.g.cs",
-    //            source);
-
-    //    }
-
-    //}
-
     public bool FilterSyntaxTargetForGeneration(SyntaxNode syntaxNode, CancellationToken _)
         => syntaxNode.IsStructFieldOrIncompleteMember();
 
@@ -220,103 +146,12 @@ public struct Bit{size}_{bitOffset} : IEquatable<{typeName}>
     /// </summary>
     private static FixedOrBitMemberDesc? FilterSemanticTargetForGeneration(GeneratorSyntaxContext context, CancellationToken _)
     {
-        //context.SemanticModel.LookupSymbols(()
-        //context.SemanticModel.LookupNamespacesAndTypes()
-        //context.SemanticModel.GetDeclaredSymbol()
         if (FixedOrBitMemberDesc.Get(context, out var fds, out var ts))
         {
-            //var declaredSymbol = context.SemanticModel?.GetDeclaredSymbol(ts);
-            ////var symbolInfo = context.SemanticModel?.GetSymbolInfo(ts);
-            ////Debugger.Launch();
-            //if (declaredSymbol?.IsDefinition != true)
             return fds;
         }
 
         return null;
     }
 
-    //context.SemanticModel.GetDeclaredSymbol(fieldDeclarationSyntax1);
-    //context.SemanticModel.GetDeclaredSymbol(fieldDeclarationSyntax1.Declaration.Type);
-    //context.SemanticModel.GetSymbolInfo(fieldDeclarationSyntax1);
-
-    //public GeneratorSyntaxContext Generate(GeneratorSyntaxContext generatorSyntaxContext, CancellationToken _)
-    //{
-    //    if (generatorSyntaxContext.Node is StructDeclarationSyntax structDeclaration)
-    //    {
-    //        //添加 public unsafe partial struct
-    //    }
-
-    //    var typeSymbol = (INamedTypeSymbol)source.TargetSymbol;
-
-    //    string baseTypeName = typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-    //        .Replace("global::", "")
-    //        .Replace("<", "_")
-    //        .Replace(">", "_");
-    //    generatorSyntaxContext.
-    //    emitParams.Context.AddSource($"{emitParams.BaseFileName}.g.cs", codeBuilder.ToString());
-
-    //    return generatorSyntaxContext;
-    //}
-
-
-    private static int Count { set; get; } = 0;
-    public void Step1_FindFiles(IncrementalGeneratorInitializationContext context)
-    {
-        //context.SyntaxProvider
-        IncrementalValueProvider<Compilation> compilations =
-            context.CompilationProvider.Select((compilation, cancellationToken) => compilation);
-        //IncrementalValuesProvider<AdditionalText> textFiles = context.AdditionalTextsProvider.Where(static file => file.Path.EndsWith(".txt"));
-
-        context.RegisterSourceOutput(compilations, (sourceProductionContext, compilation) =>
-        {
-            var syntaxTree = compilation.SyntaxTrees.FirstOrDefault();
-            if (syntaxTree == null)
-            {
-                return;
-            }
-
-            var root = syntaxTree.GetRoot(sourceProductionContext.CancellationToken);
-
-            // 选择给 Program 的附加上
-            var classDeclarationSyntax = root
-                .DescendantNodes(descendIntoTrivia: true)
-                .OfType<ClassDeclarationSyntax>()
-                .FirstOrDefault();
-            if (classDeclarationSyntax?.Identifier.Text != "Program")
-            {
-                // 如果变更的非预期类型，那就不加上代码，否则代码将会重复加入
-                return;
-            }
-
-            string source = @"
-using System;
-
-namespace WhacadenaKewarfellaja
-{
-    public static partial class Program
-    {
-        static partial void HelloFrom(string name)
-        {
-            Console.WriteLine($""Says: Hi from '{name}'"");
-        }
-    }
-}
-";
-            sourceProductionContext.AddSource("GeneratedSourceTest", source);
-
-
-            //string source = $@"Console.WriteLine(""构建 {Count} 次"");";
-            //sourceProductionContext.AddSource("GeneratedSourceTest", source);
-
-            Count++;
-            Debug.WriteLine($"构建 {Count} 次");
-
-
-        });
-
-    }
-    //public static IncrementalValueProvider<TResult> Select<TSource, TResult>(this IncrementalValueProvider<TSource> source, Func<TSource, CancellationToken, TResult> selector)
-    //{
-
-    //}
 }
