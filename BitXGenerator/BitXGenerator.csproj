@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<AnalyzerLanguage>cs</AnalyzerLanguage>
+		<Nullable>enable</Nullable>
+		<!--<IncludeBuildOutput>false</IncludeBuildOutput>-->
+		<IsRoslynComponent>true</IsRoslynComponent>
+		<DevelopmentDependency>true</DevelopmentDependency>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="BitN.cs" />
+		<Compile Remove="BitNAnalyzer.cs" />
+		<Compile Remove="Class1.cs" />
+		<Compile Remove="FileName.cs" />
+		<Compile Remove="FixedOrBitGenerator.bak.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.7.0" />
+		<PackageReference Include="System.Runtime.Numerics" Version="4.3.0" />
+	</ItemGroup>
+
+</Project>
