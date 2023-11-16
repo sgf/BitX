@@ -13,7 +13,7 @@ namespace WinFormsAppAsyncDemo
 
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct ABC
+    public struct TestStruct
     {
         public Fixed24<MyStruct> bit23;
         public Fixed23<MyStruct> bit24;
