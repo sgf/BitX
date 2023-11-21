@@ -5,7 +5,9 @@ VisualStudioVersion = 17.8.34309.116
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BitXGenerator", "BitXGenerator\BitXGenerator.csproj", "{267B1949-FE1F-42B9-8EAC-5D05A4FF1A75}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleTest", "ConsoleTest\ConsoleTest.csproj", "{A16C6A45-847D-4EC0-BADB-9BCEF30373A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleTest", "ConsoleTest\ConsoleTest.csproj", "{A16C6A45-847D-4EC0-BADB-9BCEF30373A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BitXCore", "BitXCore\BitXCore.csproj", "{61DE9F65-2619-4844-9EFA-F100ACA10075}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{A16C6A45-847D-4EC0-BADB-9BCEF30373A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A16C6A45-847D-4EC0-BADB-9BCEF30373A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A16C6A45-847D-4EC0-BADB-9BCEF30373A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61DE9F65-2619-4844-9EFA-F100ACA10075}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61DE9F65-2619-4844-9EFA-F100ACA10075}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61DE9F65-2619-4844-9EFA-F100ACA10075}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61DE9F65-2619-4844-9EFA-F100ACA10075}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Xml.Linq;
 
@@ -67,23 +68,45 @@ namespace System;";
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
 
-        var incrementalValuesProvider = context.SyntaxProvider.CreateSyntaxProvider(
-            FilterSyntaxTargetForGeneration
-            , FilterSemanticTargetForGeneration);
+        var generatorAttributes = context.SyntaxProvider.ForAttributeWithMetadataName(
+            "BitX.BitXAttribute",
+            (_, _) => true,
+            (syntaxContext, _) => syntaxContext
+        );
 
-
-        context.RegisterSourceOutput(incrementalValuesProvider, static (spc, ffd) =>
+        context.RegisterSourceOutput(generatorAttributes, (spc, ga) =>
         {
-            if (ffd.HasValue)
+            var typeSymbol = (INamedTypeSymbol)ga.TargetSymbol;
+            var typeNode = (TypeDeclarationSyntax)ga.TargetNode;
+            foreach (var m in typeNode.Members)
             {
-                if (ffd.Value.IsFixedOrBit)
-                    FixedBufferGenerate(spc, ffd.Value);
+                if (!m.IsStructFieldOrIncompleteMember()) continue;
+                if (!FixedOrBitMemberDesc.Get(m, out var fds, out var ts)) continue;
+
+                if (fds.IsFixedOrBit)
+                    FixedBufferGenerate(spc, fds);
                 else
-                    BitFieldTypeGenerate(spc, ffd.Value);
+                    BitFieldTypeGenerate(spc, fds);
             }
         });
 
-        Log.FlushLogs(context);
+        //var incrementalValuesProvider = context.SyntaxProvider.CreateSyntaxProvider(
+        //    FilterSyntaxTargetForGeneration
+        //    , FilterSemanticTargetForGeneration);
+
+
+        //context.RegisterSourceOutput(incrementalValuesProvider, static (spc, ffd) =>
+        //{
+        //    if (ffd.HasValue)
+        //    {
+        //        if (ffd.Value.IsFixedOrBit)
+        //            FixedBufferGenerate(spc, ffd.Value);
+        //        else
+        //            BitFieldTypeGenerate(spc, ffd.Value);
+        //    }
+        //});
+
+        //Log.FlushLogs(context);
     }
 
     private static void FixedBufferGenerate(SourceProductionContext spc, FixedOrBitMemberDesc ffd)
@@ -146,7 +169,8 @@ public struct Bit{size}_{bitOffset} : IEquatable<{typeName}>
     /// </summary>
     private static FixedOrBitMemberDesc? FilterSemanticTargetForGeneration(GeneratorSyntaxContext context, CancellationToken _)
     {
-        if (FixedOrBitMemberDesc.Get(context, out var fds, out var ts))
+        SyntaxNode syntaxNode = context.Node;
+        if (FixedOrBitMemberDesc.Get(syntaxNode, out var fds, out var ts))
         {
             return fds;
         }

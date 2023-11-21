@@ -25,9 +25,8 @@ internal record struct FixedOrBitMemberDesc(bool IsMissing, bool IsFixedOrBit, s
 
     public static ConcurrentDictionary<int, byte> CachedFixedCode = new();
     public static ConcurrentDictionary<long, byte> CachedBitCode = new();
-    internal static bool Get(GeneratorSyntaxContext context, out FixedOrBitMemberDesc fixedFieldDesc, out TypeSyntax ts)
+    internal static bool Get(SyntaxNode syntaxNode, out FixedOrBitMemberDesc fixedFieldDesc, out TypeSyntax ts)
     {
-        SyntaxNode syntaxNode = context.Node;
         ts = default!;
         fixedFieldDesc = default;
         if (syntaxNode.IsIncompleteMember(out var ims))
