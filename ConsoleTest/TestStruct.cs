@@ -13,7 +13,6 @@ namespace WinFormsAppAsyncDemo;
 
 using ByteOffset = System.Runtime.InteropServices.FieldOffsetAttribute;
 
-
 [BitX]
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
 public struct TestStruct

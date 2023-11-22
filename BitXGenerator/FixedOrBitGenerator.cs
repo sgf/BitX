@@ -70,7 +70,7 @@ namespace System;";
 
         var generatorAttributes = context.SyntaxProvider.ForAttributeWithMetadataName(
             "BitX.BitXAttribute",
-            (_, _) => true,
+            (x, _) => true,
             (syntaxContext, _) => syntaxContext
         );
 

@@ -36,9 +36,9 @@ internal record struct FixedOrBitMemberDesc(bool IsMissing, bool IsFixedOrBit, s
 
         if (ts?.GetTypeDesc(out var typeDesc) != true)
         {
-            if (!Debugger.IsAttached)
-                Debugger.Launch();
-            Log.Print(ts.GetText().ToString());
+            //if (!Debugger.IsAttached)
+            //    Debugger.Launch();
+            //Log.Print(ts.GetText().ToString());
             if (ts == null) return false;
             return false;
         }
@@ -46,7 +46,7 @@ internal record struct FixedOrBitMemberDesc(bool IsMissing, bool IsFixedOrBit, s
         {
             if (!Debugger.IsAttached)
                 Debugger.Launch();
-            Log.Print(ts.GetText().ToString());
+            //Log.Print(ts.GetText().ToString());
             return false;
         }
 
