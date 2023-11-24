@@ -13,12 +13,17 @@ namespace WinFormsAppAsyncDemo;
 
 using ByteOffset = System.Runtime.InteropServices.FieldOffsetAttribute;
 
+
+[BitX]
+public struct TestStruct1 {
+
+    public Bit3_0 BF1;
+}
+
 [BitX]
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
 public struct TestStruct
 {
-    //public Fixed24<MyStruct> bit23;
-    //public Fixed23<MyStruct> bit24;
     [ByteOffset(0)]
     public Bit3_0 BF1;
 
@@ -31,6 +36,20 @@ public struct TestStruct
     [ByteOffset(1)]
     public Bit7_0 BF4;
 
+    [ByteOffset(1)]
+    public Bit7_0 BF5;
+
+    [ByteOffset(1)]
+    public Bit7_0 BF6;
+
+    [ByteOffset(1)]
+    public Fixed23<MyStruct> fixed23;
+
+    [ByteOffset(1)]
+    public Fixed23<MyStruct> fixed24;
+
+    [ByteOffset(1)]
+    public Fixed25<MyStruct> fixed25;
 }
 
 public struct MyStruct

@@ -22,6 +22,7 @@ internal record struct FixedOrBitMemberDesc(bool IsMissing, bool IsFixedOrBit, s
 {
     //public readonly string FieldName;
     //public readonly string TypeName;
+    //public string TypeName => IsFixedOrBit ? $"Fixed{FixedOrBitSize}" : $"Bit{FixedOrBitSize}_{BitOffset}";
 
     public static ConcurrentDictionary<int, byte> CachedFixedCode = new();
     public static ConcurrentDictionary<long, byte> CachedBitCode = new();
@@ -29,43 +30,55 @@ internal record struct FixedOrBitMemberDesc(bool IsMissing, bool IsFixedOrBit, s
     {
         ts = default!;
         fixedFieldDesc = default;
-        if (syntaxNode.IsIncompleteMember(out var ims))
-            ts = ims.GetTypeSyntax()!;
-        else if (syntaxNode.IsField(out var fds))
-            ts = fds.GetTypeSyntax();
-
-        if (ts?.GetTypeDesc(out var typeDesc) != true)
+        var m = syntaxNode;
+        TypeDesc typeDesc;
+        if ((m is IncompleteMemberSyntax ims && ims.GetTypeDesc(out typeDesc)) ||
+            (m is FieldDeclarationSyntax _fds && _fds.GetTypeDesc(out typeDesc)))
         {
-            //if (!Debugger.IsAttached)
-            //    Debugger.Launch();
-            //Log.Print(ts.GetText().ToString());
-            if (ts == null) return false;
-            return false;
-        }
-        if (!typeDesc.IsFixed && !typeDesc.IsBit)
-        {
-            if (!Debugger.IsAttached)
-                Debugger.Launch();
-            //Log.Print(ts.GetText().ToString());
-            return false;
+            fixedFieldDesc = new(typeDesc.IsMissing, typeDesc.IsFixed == true, typeDesc.Name, typeDesc.FixedOrBitSize, typeDesc.BitOffset);
+            return true;
         }
 
-        if (typeDesc.IsFixed)
-        {
-            if (!CachedFixedCode.TryAdd(typeDesc.FixedOrBitSize, 0))
-                return false;
-        }
-        else if (typeDesc.IsBit)
-        {
-            if (!CachedBitCode.TryAdd((long)typeDesc.FixedOrBitSize << 32 | (long)typeDesc.BitOffset, 0))
-                return false;
-        }
-        else
-        {
-            //context.ReportDiagnostic(Diagnostic.Create(
-        }
-        fixedFieldDesc = new(typeDesc.IsMissing, typeDesc.IsFixed == true, typeDesc.Name, typeDesc.FixedOrBitSize, typeDesc.BitOffset);
-        return true;
+        return false;
+
+
+        //if (syntaxNode.IsIncompleteMember(out var ims))
+        //    ts = ims.GetTypeSyntax()!;
+        //else if (syntaxNode.IsField(out var fds))
+        //    ts = fds.GetTypeSyntax();
+
+        //if (ts?.GetTypeDesc(out var typeDesc) != true)
+        //{
+        //    //if (!Debugger.IsAttached)
+        //    //    Debugger.Launch();
+        //    //Log.Print(ts.GetText().ToString());
+        //    if (ts == null) return false;
+        //    return false;
+        //}
+        //if (!typeDesc.IsFixed && !typeDesc.IsBit)
+        //{
+        //    if (!Debugger.IsAttached)
+        //        Debugger.Launch();
+        //    //Log.Print(ts.GetText().ToString());
+        //    return false;
+        //}
+
+        ////if (typeDesc.IsFixed)
+        ////{
+        ////    if (!CachedFixedCode.TryAdd(typeDesc.FixedOrBitSize, 0))
+        ////        return false;
+        ////}
+        ////else if (typeDesc.IsBit)
+        ////{
+        ////    if (!CachedBitCode.TryAdd((long)typeDesc.FixedOrBitSize << 32 | (long)typeDesc.BitOffset, 0))
+        ////        return false;
+        ////}
+        ////else
+        ////{
+        ////    //context.ReportDiagnostic(Diagnostic.Create(
+        ////}
+        //fixedFieldDesc = new(typeDesc.IsMissing, typeDesc.IsFixed == true, typeDesc.Name, typeDesc.FixedOrBitSize, typeDesc.BitOffset);
+        //return true;
     }
 
 
@@ -91,6 +104,14 @@ public static class SyntaxEx
     {
         if ((node.IsField() | node.IsIncompleteMember()) &&
             node.IsParentStruct())
+            return true;
+        return false;
+    }
+
+
+    public static bool IsFieldOrIncompleteMember(this SyntaxNode node)
+    {
+        if ((node.IsField() | node.IsIncompleteMember()))
             return true;
         return false;
     }

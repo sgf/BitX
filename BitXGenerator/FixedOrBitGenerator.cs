@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Xml.Linq;
 
@@ -65,30 +66,67 @@ namespace System;";
         return result;
     }
 
+    //private static Dictionary<string, FixedOrBitMemberDesc> list = [];
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
 
         var generatorAttributes = context.SyntaxProvider.ForAttributeWithMetadataName(
             "BitX.BitXAttribute",
-            (x, _) => true,
-            (syntaxContext, _) => syntaxContext
+            (x, _) =>
+        {
+            return x is StructDeclarationSyntax sds && sds.Members.Any(m => m.IsFieldOrIncompleteMember()
+            && ((m is IncompleteMemberSyntax ims && ims!.GetTypeDesc(out var td1)) ||
+            (m is FieldDeclarationSyntax _fds && _fds.GetTypeDesc(out var td2))) );
+        }
+        ,
+            (sctx, _) =>
+            {
+                Dictionary<string, FixedOrBitMemberDesc> list = [];
+                foreach (var m in ((StructDeclarationSyntax)sctx.TargetNode).Members.Where(m => m.IsFieldOrIncompleteMember()))
+                {
+                    if (!FixedOrBitMemberDesc.Get(m, out var fds, out var ts)) continue;
+                    if (!list.ContainsKey(fds.TypeName))
+                        list.Add(fds.TypeName, fds);
+                }
+                //if (list.Values.Count == 0)
+                //{
+                //    if (!Debugger.IsAttached)
+                //        Debugger.Launch();
+                //}
+                return list;
+            }
+
         );
+
+
 
         context.RegisterSourceOutput(generatorAttributes, (spc, ga) =>
         {
-            var typeSymbol = (INamedTypeSymbol)ga.TargetSymbol;
-            var typeNode = (TypeDeclarationSyntax)ga.TargetNode;
-            foreach (var m in typeNode.Members)
-            {
-                if (!m.IsStructFieldOrIncompleteMember()) continue;
-                if (!FixedOrBitMemberDesc.Get(m, out var fds, out var ts)) continue;
 
+            foreach (var fds in ga.Values)
+            {
                 if (fds.IsFixedOrBit)
                     FixedBufferGenerate(spc, fds);
                 else
                     BitFieldTypeGenerate(spc, fds);
             }
         });
+
+        //context.RegisterSourceOutput(generatorAttributes, (spc, ga) =>
+        //{
+        //    var typeSymbol = (INamedTypeSymbol)ga.TargetSymbol;
+        //    var typeNode = (TypeDeclarationSyntax)ga.TargetNode;
+        //    foreach (var m in typeNode.Members)
+        //    {
+        //        if (!m.IsStructFieldOrIncompleteMember()) continue;
+        //        if (!FixedOrBitMemberDesc.Get(m, out var fds, out var ts)) continue;
+
+        //        if (fds.IsFixedOrBit)
+        //            FixedBufferGenerate(spc, fds);
+        //        else
+        //            BitFieldTypeGenerate(spc, fds);
+        //    }
+        //});
 
         //var incrementalValuesProvider = context.SyntaxProvider.CreateSyntaxProvider(
         //    FilterSyntaxTargetForGeneration
@@ -113,7 +151,7 @@ namespace System;";
     {
         var code = $@"{FixedFileHead}
 [InlineArray({ffd.FixedOrBitSize})]
-public struct Fixed{ffd.FixedOrBitSize}<T>
+public struct {ffd.TypeName}<T>
 {{
     private T _element0;
 
@@ -122,7 +160,7 @@ public struct Fixed{ffd.FixedOrBitSize}<T>
     public Span<T> GetSpan() => MemoryMarshal.CreateSpan(ref Unsafe.As<Fixed{ffd.FixedOrBitSize}<T>, T>(ref this), {ffd.FixedOrBitSize});
 
     T this[int index] {{ get => this[index]; set => this[index] = value; }}
-}}"; 
+}}";
         spc.AddSource($"Fixed{ffd.FixedOrBitSize}.g.cs", code);
     }
 
@@ -134,30 +172,29 @@ public struct Fixed{ffd.FixedOrBitSize}<T>
         var bitOffset = ffd.BitOffset;
         //var bitSizeWithOffset = (long)size << 32 | bitOffset;
         var bitSizeAndOffset = size + bitOffset;
-        var typeName = $"Bit{size}_{bitOffset}";
         var baseType = GetBaseTypeByBitSizeAndOffset(bitSizeAndOffset, ffd.TypeName);
-        var code =  $@"{FixedFileHead}
-public struct Bit{size}_{bitOffset} : IEquatable<{typeName}>
+        var code = $@"{FixedFileHead}
+public struct {ffd.TypeName} : IEquatable<{ffd.TypeName}>
 {{
     public const {baseType} Max = {GetMaxByBitCount(size)};
     public const {baseType} Min = {0};
 
     public {baseType} Value;
-    public {typeName} ({baseType}  x) => Value = x;
+    public {ffd.TypeName} ({baseType}  x) => Value = x;
 
-    public bool Equals({typeName} other) => Value == other.Value;
-    public override bool Equals(object obj) => obj is {typeName} other && Equals(other);
+    public bool Equals({ffd.TypeName} other) => Value == other.Value;
+    public override bool Equals(object obj) => obj is {ffd.TypeName} other && Equals(other);
     public override int GetHashCode() => Value.GetHashCode();
-    public static bool operator ==({typeName} x, {typeName} y) => x.Value == y.Value;
-    public static bool operator !=({typeName} x, {typeName} y) => x.Value != y.Value;
+    public static bool operator ==({ffd.TypeName} x, {ffd.TypeName} y) => x.Value == y.Value;
+    public static bool operator !=({ffd.TypeName} x, {ffd.TypeName} y) => x.Value != y.Value;
 
-    public static implicit operator {typeName}({baseType} x) => new {typeName}(x);
-    public static implicit operator {baseType}({typeName} x) => x.Value;
+    public static implicit operator {ffd.TypeName}({baseType} x) => new {ffd.TypeName}(x);
+    public static implicit operator {baseType}({ffd.TypeName} x) => x.Value;
 
     public override string ToString() => Value.ToString();
 }}";
 
-        spc.AddSource($"{typeName}.g.cs", code);
+        spc.AddSource($"{ffd.TypeName}.g.cs", code);
 
     }
 
