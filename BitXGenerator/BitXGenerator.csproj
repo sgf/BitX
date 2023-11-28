@@ -13,7 +13,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Remove="BitNAnalyzer.cs" />
 		<Compile Remove="Class1.cs" />
 		<Compile Remove="FileName.cs" />
 		<Compile Remove="FixedOrBitGenerator.bak.cs" />

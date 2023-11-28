@@ -3,6 +3,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace BitX;
 
@@ -18,88 +20,33 @@ public static class LogS
 
 }
 
-internal record struct FixedOrBitMemberDesc(bool IsMissing, bool IsFixedOrBit, string TypeName, int FixedOrBitSize, int BitOffset)
-{
-    //public readonly string FieldName;
-    //public readonly string TypeName;
-    //public string TypeName => IsFixedOrBit ? $"Fixed{FixedOrBitSize}" : $"Bit{FixedOrBitSize}_{BitOffset}";
-
-    public static ConcurrentDictionary<int, byte> CachedFixedCode = new();
-    public static ConcurrentDictionary<long, byte> CachedBitCode = new();
-    internal static bool Get(SyntaxNode syntaxNode, out FixedOrBitMemberDesc fixedFieldDesc, out TypeSyntax ts)
-    {
-        ts = default!;
-        fixedFieldDesc = default;
-        var m = syntaxNode;
-        TypeDesc typeDesc;
-        if ((m is IncompleteMemberSyntax ims && ims.GetTypeDesc(out typeDesc)) ||
-            (m is FieldDeclarationSyntax _fds && _fds.GetTypeDesc(out typeDesc)))
-        {
-            fixedFieldDesc = new(typeDesc.IsMissing, typeDesc.IsFixed == true, typeDesc.Name, typeDesc.FixedOrBitSize, typeDesc.BitOffset);
-            return true;
-        }
-
-        return false;
-
-
-        //if (syntaxNode.IsIncompleteMember(out var ims))
-        //    ts = ims.GetTypeSyntax()!;
-        //else if (syntaxNode.IsField(out var fds))
-        //    ts = fds.GetTypeSyntax();
-
-        //if (ts?.GetTypeDesc(out var typeDesc) != true)
-        //{
-        //    //if (!Debugger.IsAttached)
-        //    //    Debugger.Launch();
-        //    //Log.Print(ts.GetText().ToString());
-        //    if (ts == null) return false;
-        //    return false;
-        //}
-        //if (!typeDesc.IsFixed && !typeDesc.IsBit)
-        //{
-        //    if (!Debugger.IsAttached)
-        //        Debugger.Launch();
-        //    //Log.Print(ts.GetText().ToString());
-        //    return false;
-        //}
-
-        ////if (typeDesc.IsFixed)
-        ////{
-        ////    if (!CachedFixedCode.TryAdd(typeDesc.FixedOrBitSize, 0))
-        ////        return false;
-        ////}
-        ////else if (typeDesc.IsBit)
-        ////{
-        ////    if (!CachedBitCode.TryAdd((long)typeDesc.FixedOrBitSize << 32 | (long)typeDesc.BitOffset, 0))
-        ////        return false;
-        ////}
-        ////else
-        ////{
-        ////    //context.ReportDiagnostic(Diagnostic.Create(
-        ////}
-        //fixedFieldDesc = new(typeDesc.IsMissing, typeDesc.IsFixed == true, typeDesc.Name, typeDesc.FixedOrBitSize, typeDesc.BitOffset);
-        //return true;
-    }
-
-
-}
-
-
-public record struct TypeDesc(string Name, bool IsGeneric, string[] GenericArgTypeNames
-    , bool IsMissing, bool IsFixed, bool IsBit, int FixedOrBitSize = 0, int BitOffset = 0)
+public record struct TypeDesc(string Name, bool IsGeneric, string[] GenericArgTypeNames, bool IsFixed, bool IsBit, int FixedOrBitSize = 0, int BitOffset = 0):IEquatable<TypeDesc>
 {
     public string FirstGenericArgTypeName => GenericArgTypeNames.FirstOrDefault();
     //public bool IsFixed => Name.Length > "Fixed".Length && Name.StartsWith("Fixed");
+
+    public bool Equals(TypeDesc other) => this.Name.Equals(other.Name);
+
+    public override int GetHashCode() => this.Name.GetHashCode();
+
 }
 
 public static class SyntaxEx
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsStruct(this SyntaxNode node)
+    {
+        return (node.IsKind(SyntaxKind.RecordStructDeclaration) || node.IsKind(SyntaxKind.StructDeclaration));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsParentStruct(this SyntaxNode node)
     {
         var parent = node.Parent;
         return (parent.IsKind(SyntaxKind.RecordStructDeclaration) || parent.IsKind(SyntaxKind.StructDeclaration));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsStructFieldOrIncompleteMember(this SyntaxNode node)
     {
         if ((node.IsField() | node.IsIncompleteMember()) &&
@@ -109,6 +56,7 @@ public static class SyntaxEx
     }
 
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsFieldOrIncompleteMember(this SyntaxNode node)
     {
         if ((node.IsField() | node.IsIncompleteMember()))
@@ -116,9 +64,11 @@ public static class SyntaxEx
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsField(this SyntaxNode syntaxNode)
         => syntaxNode.IsKind(SyntaxKind.FieldDeclaration);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsField(this SyntaxNode syntaxNode, out FieldDeclarationSyntax fds)
     {
         var isIcm = syntaxNode.IsKind(SyntaxKind.FieldDeclaration);
@@ -131,9 +81,11 @@ public static class SyntaxEx
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsIncompleteMember(this SyntaxNode syntaxNode)
         => syntaxNode.IsKind(SyntaxKind.IncompleteMember);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsIncompleteMember(this SyntaxNode syntaxNode, out IncompleteMemberSyntax ims)
     {
         var isIcm = syntaxNode.IsKind(SyntaxKind.IncompleteMember);
@@ -146,6 +98,7 @@ public static class SyntaxEx
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsGenericType(this IncompleteMemberSyntax ims, out GenericNameSyntax gns)//IdentifierNameSyntax
     {
         if (ims.Type?.IsGeneric(out var _gns) == true)
@@ -157,6 +110,7 @@ public static class SyntaxEx
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool GetTypeDesc(this FieldDeclarationSyntax fds, out TypeDesc typeDesc)
     {
         var type = fds.GetTypeSyntax();
@@ -169,6 +123,7 @@ public static class SyntaxEx
     }
 
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool GetTypeDesc(this IncompleteMemberSyntax ims, out TypeDesc typeDesc)
     {
         var type = ims.GetTypeSyntax();
@@ -180,6 +135,7 @@ public static class SyntaxEx
         return type.GetTypeDesc(out typeDesc);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool GetTypeDesc(this TypeSyntax ts, out TypeDesc typeDesc)
     {
         var typeIsMissing = ts.IsMissing;
@@ -202,7 +158,7 @@ public static class SyntaxEx
             if (int.TryParse(typeName.Replace("Fixed", ""), out var cntOfStructs)
                 && cntOfStructs > 0)//必须大于0,否则没意义
             {
-                typeDesc = new(typeName, isGeneric, typeArguments, typeIsMissing, IsFixed: true, IsBit: false, cntOfStructs);
+                typeDesc = new(typeName, isGeneric, typeArguments, IsFixed: true, IsBit: false, cntOfStructs);
                 return true;
             }
         }
@@ -211,7 +167,7 @@ public static class SyntaxEx
             var partsOfTypeName = typeName.Replace("Bit", "").Split(new[] { "_" }, StringSplitOptions.RemoveEmptyEntries);
             if (partsOfTypeName.Length == 2 && int.TryParse(partsOfTypeName[0], out var cntOfBit) && int.TryParse(partsOfTypeName[1], out var bitOffset))
             {
-                typeDesc = new(typeName, isGeneric, typeArguments, typeIsMissing, IsFixed: false, IsBit: true, cntOfBit, bitOffset);
+                typeDesc = new(typeName, isGeneric, typeArguments, IsFixed: false, IsBit: true, cntOfBit, bitOffset);
                 return true;
             }
         }
@@ -219,7 +175,37 @@ public static class SyntaxEx
         return false;
     }
 
+    public static bool IsFixedTypeName(string typeName, out TypeDesc typeDesc)
+    {
+        if (typeName.Length > "Fixed".Length && typeName.StartsWith("Fixed"))
+        {
+            if (int.TryParse(typeName.Replace("Fixed", ""), out var cntOfStructs)
+                && cntOfStructs > 0)//必须大于0,否则没意义
+            {
+                typeDesc = new(typeName, default, Array.Empty<string>(), IsFixed: true, IsBit: false, cntOfStructs);
+                return true;
+            }
+        }
+        typeDesc = default; return false;
+    }
 
+    public static bool IsBitTypeName(string typeName,out TypeDesc typeDesc)
+    {
+        if (typeName.Length >= "Bit0_0".Length && typeName.StartsWith("Bit"))
+        {
+            var partsOfTypeName = typeName.Replace("Bit", "").Split(new[] { "_" }, StringSplitOptions.RemoveEmptyEntries);
+            if (partsOfTypeName.Length == 2 && int.TryParse(partsOfTypeName[0], out var cntOfBit) && int.TryParse(partsOfTypeName[1], out var bitOffset))
+            {
+                typeDesc = new(typeName, default, Array.Empty<string>(), IsFixed: false, IsBit: true, cntOfBit, bitOffset);
+                return true;
+            }
+        }
+        typeDesc = default; return false;
+    }
+
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsGenericType(this FieldDeclarationSyntax fds, out GenericNameSyntax gns)
     {
         if (fds.Declaration.Type.IsGeneric(out var _gns))
@@ -232,6 +218,7 @@ public static class SyntaxEx
     }
 
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsNormal(this TypeSyntax typeSyntax, out IdentifierNameSyntax ins)
     {
         if (typeSyntax is IdentifierNameSyntax _ins)
@@ -242,6 +229,8 @@ public static class SyntaxEx
         ins = default!;
         return false;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsGeneric(this TypeSyntax typeSyntax, out GenericNameSyntax gns)
     {
         if (typeSyntax is GenericNameSyntax _gns)
@@ -263,15 +252,19 @@ public static class SyntaxEx
     //}
 
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TypeSyntax GetTypeSyntax(this FieldDeclarationSyntax fds)
     => fds.Declaration.Type;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TypeSyntax? GetTypeSyntax(this IncompleteMemberSyntax ims)
     => ims.Type;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TypeName(this SimpleNameSyntax sns)
         => sns.Identifier.Text;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TypeName(this TypeSyntax ts)
     {
         if (ts.IsNormal(out var ins))
