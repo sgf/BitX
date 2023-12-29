@@ -102,11 +102,6 @@ namespace System;
             sb = sb.AppendLineIf(!argTypeSmallSelf, $"    public static explicit operator {typeName}({intType} x) => new {typeName}(({valueTypeSizeAndType.valueType})(x));");
         }
 
-        //public static implicit operator sbyte(Bit7_0 x) => x.Value;
-        //public static implicit operator Bit7_0(byte x) => x.Value;
-        //public static explicit operator byte(Bit7_0 x) => x.Value;
-        //public static explicit operator Bit7_0(byte x) => new Bit7_0((byte)(x));
-
         return (baseType, valueTypeSizeAndType.valueType, new string(strSpan), sb.ToString());
     }
 
