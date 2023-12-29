@@ -10,6 +10,7 @@
 		<IsRoslynComponent>true</IsRoslynComponent>
 		<DevelopmentDependency>true</DevelopmentDependency>
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -19,6 +20,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="IndexRange" Version="1.0.3" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -99,6 +99,11 @@ namespace BitX
                 default: throw new NotSupportedException();
             }
         }
+
+        public static StringBuilder AppendLineIf(this StringBuilder _this,bool condition,string str)
+        {
+            return condition ? _this.AppendLine(str) : _this;
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System;
 using System.Text;
 
 namespace BitX;
@@ -31,16 +32,84 @@ namespace System;
 
 ";
 
-    private static string GetBaseTypeByBitSizeAndOffset(int bitSizeAndOffset, string typeName) =>
-       bitSizeAndOffset switch
+    private const string s8 = "0b00000000";
+    private const string s16 = "0b0000000000000000";
+    private const string s24 = "0b000000000000000000000000";
+    private const string s32 = "0b00000000000000000000000000000000";
+    private const string s40 = "0b0000000000000000000000000000000000000000";
+    private const string s48 = "0b000000000000000000000000000000000000000000000000";
+    private const string s56 = "0b00000000000000000000000000000000000000000000000000000000";
+    private const string s64 = "0b0000000000000000000000000000000000000000000000000000000000000000";
+    private const string s128 = "0b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+
+
+    private static (string type, int size, bool signed)[] baseIntTypes = {
+        ("sbyte",8,true ), ("byte", 8,false ),
+        ("short",16,true), ("ushort",16,false),
+        ("int",32,true), ("uint",32,false),
+        ("long",64,true), ("ulong",64,false),
+        ("Int128",128,true), ("UInt128",128,false) };
+
+    private static (string baseType, string valueType, string mask, string convertOperator) GetBaseTypeByBitSizeAndOffset(int offset, int bitSize, string typeName) =>
+       (offset + bitSize) switch
        {
-           <= 8 => "byte",
-           <= 16 => "ushort",
-           <= 32 => "uint",
-           <= 64 => "ulong",
-           _ => throw new ArgumentException($"unsupported bit Size And Offset: {bitSizeAndOffset}", typeName),
+           <= 8 => GetMaskByBitSizeAndOffset("byte", GetTypeByBitSize(bitSize, typeName), typeName, offset, bitSize, s8),
+           <= 16 => GetMaskByBitSizeAndOffset("ushort", GetTypeByBitSize(bitSize, typeName), typeName, offset, bitSize, s16),
+           <= 32 => GetMaskByBitSizeAndOffset("uint", GetTypeByBitSize(bitSize, typeName), typeName, offset, bitSize, s32),
+           <= 64 => GetMaskByBitSizeAndOffset("ulong", GetTypeByBitSize(bitSize, typeName), typeName, offset, bitSize, s64),
+           <= 128 => GetMaskByBitSizeAndOffset("UInt128", GetTypeByBitSize(bitSize, typeName), typeName, offset, bitSize, s128),
+           _ => throw new ArgumentException($"unsupported bit Size And Offset: {offset + bitSize}", typeName),
            //<= 128 => "UInt128",
        };
+
+
+    private static (int valueTypeSize, string valueType) GetTypeByBitSize(int bitSize, string typeName) =>
+     bitSize switch
+     {
+         <= 8 => (8, "byte"),
+         <= 16 => (16, "ushort"),
+         <= 32 => (32, "uint"),
+         <= 64 => (64, "ulong"),
+         <= 128 => (128, "UInt128"),
+         _ => throw new ArgumentException($"unsupported bit Size: {bitSize}", typeName),
+     };
+
+
+    private static unsafe (string baseType, string valueType, string mask, string convertOperator) GetMaskByBitSizeAndOffset(
+        string baseType, (int valueTypeSize, string valueType) valueTypeSizeAndType, string typeName, int offset, int selfValueTypeBitSize, string sxxBase)
+    {
+        var readOnlySpan = sxxBase.AsSpan();
+        var strSpan = new char[readOnlySpan.Length];
+        Span<char> span = strSpan;
+        readOnlySpan.CopyTo(span);
+        var endIdx = offset + selfValueTypeBitSize;
+        for (int i = offset + 1; i <= endIdx; i++)
+            span[^i] = '1';
+        StringBuilder sb = new(2048);
+
+        sb.AppendLine();
+        foreach (var (intType, intTypeBitSize, signed) in baseIntTypes)//生成隐式转换
+        {
+            var selfSmallReturnType = (!signed && valueTypeSizeAndType.valueTypeSize <= intTypeBitSize)
+                || (signed && valueTypeSizeAndType.valueTypeSize < intTypeBitSize);//（有符号 && byte < sbyte）？ 不成立
+            var argTypeSmallSelf = (!signed && valueTypeSizeAndType.valueTypeSize >= intTypeBitSize)
+                 || (signed && valueTypeSizeAndType.valueTypeSize > intTypeBitSize);
+
+            sb = sb.AppendLineIf(selfSmallReturnType, $"    public static implicit operator {intType}({typeName} x) => x.Value;");
+            sb = sb.AppendLineIf(argTypeSmallSelf, $"    public static implicit operator {typeName}({valueTypeSizeAndType.valueType} x) => x;");
+
+            sb = sb.AppendLineIf(!selfSmallReturnType, $"    public static explicit operator {intType}({typeName} x) => ({intType})x.Value;");
+            sb = sb.AppendLineIf(!argTypeSmallSelf, $"    public static explicit operator {typeName}({intType} x) => new {typeName}(({valueTypeSizeAndType.valueType})(x));");
+        }
+
+        //public static implicit operator sbyte(Bit7_0 x) => x.Value;
+        //public static implicit operator Bit7_0(byte x) => x.Value;
+        //public static explicit operator byte(Bit7_0 x) => x.Value;
+        //public static explicit operator Bit7_0(byte x) => new Bit7_0((byte)(x));
+
+        return (baseType, valueTypeSizeAndType.valueType, new string(strSpan), sb.ToString());
+    }
+
 
     public static ulong GetMaxByBitCount(int bitCount)
     {
@@ -110,40 +179,76 @@ public struct {ffd.Name}<T>
         spc.AddSource($"Fixed.g.cs", csb.ToString());
     }
 
-
-
     private static void BitFieldTypeGenerate(SourceProductionContext spc, IEnumerable<TypeDesc> ffds)
     {
         StringBuilder csb = new($@"{FixedFileHead}");
 
         foreach (var ffd in ffds)
         {
-            var size = ffd.FixedOrBitSize;
+            var bitSize = ffd.FixedOrBitSize;
             var bitOffset = ffd.BitOffset;
             //var bitSizeWithOffset = (long)size << 32 | bitOffset;
-            var baseType = GetBaseTypeByBitSizeAndOffset(bitOffset + size, ffd.Name);
+            //{baseType}
+            var typeName = ffd.Name;
+            var (baseType, valueType, mask, convertOperator) = GetBaseTypeByBitSizeAndOffset(bitOffset, bitSize, ffd.Name);
             csb.AppendLine($@"
-public struct {ffd.Name} : IEquatable<{ffd.Name}>
+public struct {typeName} : IEquatable<{typeName}>
 {{
 
-    public const int Size = {size};
-    public const {baseType} Max = {GetMaxByBitCount(size)};
+    public const int Size = {bitSize};
+    public const int Offset = {bitOffset};
+    public const int Mask = {mask};
+    public const {baseType} Max = {GetMaxByBitCount(bitSize)};
     public const {baseType} Min = {0};
 
-    public {baseType} Value;
-    public {ffd.Name} ({baseType}  x) => Value = x;
+    public {baseType} _Value;
+    public {valueType} Value {{ get => ({valueType})((_Value & Mask) >> Offset); set => _Value |= ({valueType})(value << Offset & Mask); }}
 
-    public bool Equals({ffd.Name} other) => Value == other.Value;
-    public override bool Equals(object obj) => obj is {ffd.Name} other && Equals(other);
+    public {typeName} ({valueType}  x) => Value = x;
+
+    public bool Equals({typeName} other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is {typeName} other && Equals(other);
+
     public override int GetHashCode() => Value.GetHashCode();
-    public static bool operator ==({ffd.Name} x, {ffd.Name} y) => x.Value == y.Value;
-    public static bool operator !=({ffd.Name} x, {ffd.Name} y) => x.Value != y.Value;
+    public static bool operator ==({typeName} x, {typeName} y) => x.Value == y.Value;
+    public static bool operator !=({typeName} x, {typeName} y) => x.Value != y.Value;
 
-    public static implicit operator {ffd.Name}({baseType} x) => new {ffd.Name}(x);
-    public static implicit operator {baseType}({ffd.Name} x) => x.Value;
 
     public override string ToString() => Value.ToString();
+    
+    {convertOperator}
+
 }}");
+
+
+            //public static implicit operator {ffd.Name}({baseType} x) => new {ffd.Name}(x);
+            //public static implicit operator {baseType}({ffd.Name} x) => x.Value;
+            //public static explicit operator {ffd.Name}(byte x) => new {ffd.Name}(x);
+            //public static explicit operator {ffd.Name}(sbyte x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(short x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(ushort x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(int x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(uint x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(long x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(ulong x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(Int128 x) => ({ffd.Name})({baseType})x;
+            //public static explicit operator {ffd.Name}(UInt128 x) => ({ffd.Name})({baseType})x;
+
+            ////form small to bit number,soo its implicit
+            //public static implicit operator byte({ffd.Name} x) => x.Value;
+            //public static implicit operator sbyte({ffd.Name} x) => x.Value;
+            //public static implicit operator short({ffd.Name} x) => x.Value;
+            //public static implicit operator ushort({ffd.Name} x) => x.Value;
+            //public static implicit operator int({ffd.Name} x) => x.Value;
+            //public static implicit operator uint({ffd.Name} x) => x.Value;
+            //public static implicit operator long({ffd.Name} x) => x.Value;
+            //public static implicit operator ulong({ffd.Name} x) => x.Value;
+            //public static implicit operator Int128({ffd.Name} x) => x.Value;
+            //public static implicit operator UInt128({ffd.Name} x) => x.Value;
+
+#warning TODO:BaseType 代表 结构体整个所占的大小.但是并不代表结构体值所占的大小(结构体值所占的大小会更小,因此从大到小的转换可能应该以此判断是否要做强制转换)
+#warning TODO:下面的转换也要当心大小,同样也是要以Value返回值为准,而不是以_Value基类型存储的值为准.
+#warning TODO:如果可以还要做字面量的大小判断. 比如 BitXX bitxx=?; 如果超过范围就判错. 目前实现的可能不够完善:BitNAnalyzer.cs
         }
 
         spc.AddSource($"BitFields.g.cs", csb.ToString());
